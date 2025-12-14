@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>數學勇者：四則運算大挑戰 V4.3 (乘除法連貫)</title>
+    <title>數學勇者：四則運算大挑戰 V4.4 (答錯顯示原題與正解)</title>
     <style>
         /* CSS 樣式維持不變 */
         body {
@@ -263,7 +263,7 @@
 
         // 題目生成邏輯
         switch(type) {
-            // Level 1: 高數字挑戰 (先乘除後加減) - 邏輯與 V4.2 相同，確保無負數、無小數
+            // Level 1: 高數字挑戰 (先乘除後加減) - 邏輯與 V4.3 相同，確保無負數、無小數
             case 0: // A + B x C 
                 let b_big = genNum(max_n_small + 5, 10); 
                 qText = `${n1} + ${b_big} × ${n3}`;
@@ -336,16 +336,13 @@
 
             case 9: // 乘除連貫 (A ÷ B × C 或 A × B ÷ C)
                 let op_order = Math.random() < 0.5 ? 'DivMul' : 'MulDiv';
-                let numA_c = genNum(100, 20);
-                let numB_c = genNum(10, 2);
-                let numC_c = genNum(10, 2);
                 let temp_result;
                 
                 // 嘗試生成，確保每一步都整除
                 for (let i = 0; i < 10; i++) {
-                    numA_c = genNum(100, 20);
-                    numB_c = genNum(10, 2);
-                    numC_c = genNum(10, 2);
+                    let numA_c = genNum(100, 20);
+                    let numB_c = genNum(10, 2);
+                    let numC_c = genNum(10, 2);
                     op_order = Math.random() < 0.5 ? 'DivMul' : 'MulDiv';
 
                     if (op_order === 'DivMul') { // A ÷ B × C
@@ -400,10 +397,16 @@
             setTimeout(() => monster.classList.remove('shake'), 500);
 
         } else {
-            // 答錯
+            // 答錯 - 顯示原題目和正確答案
             heroHP -= 1;
+            
+            // 1. 取得並清理題目文字 (移除 HTML 標籤，例如 <span class="paren">)
+            let currentQuestionHTML = document.getElementById('question-display').innerHTML;
+            let currentQuestionText = currentQuestionHTML.replace(' = ?', '').replace(/<[^>]*>/g, '');
+
             const hint = currentLevel === 1 ? "記得「先乘除後加減」！請筆算確認喔！" : "小心「括號優先」或「同級運算：由左至右」的順序！";
-            log.innerHTML = `💥 哎呀！正確答案是 <b>${currentAnswer}</b>。<br>${hint}`;
+            
+            log.innerHTML = `💥 哎呀！你回答 ${playerAns}，但正確答案是 <b>${currentQuestionText} = ${currentAnswer}</b>。<br>${hint}`;
             log.style.color = "#e74c3c";
             
             document.body.classList.add('shake');
