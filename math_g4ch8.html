@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>數學勇者：四則運算大挑戰 V4.4 (答錯顯示原題與正解)</title>
+    <title>數學勇者：四則運算大挑戰 V5.0 (新增應用題)</title>
     <style>
         /* CSS 樣式維持不變 */
         body {
@@ -70,16 +70,21 @@
         .question-box {
             background-color: #ecf0f1;
             color: #2c3e50;
-            font-size: 32px;
+            font-size: 24px; /* 應用題文字較多，字體稍微縮小 */
             font-weight: bold;
             padding: 15px;
             border-radius: 10px;
             margin: 20px 0;
             border: 3px dashed #bdc3c7;
+            text-align: left; /* 應用題靠左對齊較清晰 */
         }
         
         /* 讓括號題目更明顯 */
         .question-box span.paren { color: #e74c3c; }
+        
+        /* 讓文字題的關鍵數字更突出 */
+        .question-box b { color: #3498db; }
+
 
         /* 輸入區 */
         input[type="number"] {
@@ -193,6 +198,7 @@
     let heroHP = 3;
     let currentAnswer = 0;
     let currentLevel = 1;
+    let currentQuestionExpression = ""; // 用來儲存運算式，供答錯時顯示
 
     const levelSettings = {
         1: {
@@ -201,15 +207,23 @@
             intro: "本關挑戰「大數字計算」！需要筆算喔！",
             types: [0, 1, 2, 3, 7], // 複雜乘除，無括號
             maxN: 300, 
-            isParentheses: false 
+            isWordProblem: false
         },
         2: {
             title: "🔥 數學勇者：第二關 (括號與乘除連貫挑戰) 🔥",
             monsterEmoji: "😈", 
             intro: "本關挑戰「括號優先」與「乘除連貫：由左至右」！",
-            types: [4, 5, 6, 9], // 4,5,6: 括號, 9: 乘除連貫 (新增)
+            types: [4, 5, 6, 9], // 4,5,6: 括號, 9: 乘除連貫
             maxN: 150, 
-            isParentheses: true 
+            isWordProblem: false
+        },
+        3: {
+            title: "👑 數學勇者：最終應用題挑戰 👑",
+            monsterEmoji: "🤖", 
+            intro: "本關挑戰「文字應用題」！必須先列出算式再計算喔！",
+            types: [10, 11, 12, 13], // 應用題類型
+            maxN: 50, // 應用題數字相對簡單，以免過於複雜
+            isWordProblem: true
         }
     };
     
@@ -225,6 +239,12 @@
         document.getElementById('monster').innerText = settings.monsterEmoji;
         document.getElementById('game-log').innerHTML = settings.intro + "<br>開始戰鬥！";
         document.getElementById('game-log').style.color = "#f39c12";
+        
+        // 調整輸入框類型和題目盒子樣式
+        const isWordProblem = settings.isWordProblem;
+        document.getElementById('answer-input').type = "number"; 
+        document.getElementById('question-display').style.textAlign = isWordProblem ? "left" : "center";
+        document.getElementById('question-display').style.fontSize = isWordProblem ? "24px" : "32px";
 
         document.getElementById('result-screen').classList.add('hidden');
         generateQuestion();
@@ -247,133 +267,202 @@
         return 1;
     }
 
-    function generateQuestion() {
-        const settings = levelSettings[currentLevel];
-        let type = settings.types[Math.floor(Math.random() * settings.types.length)];
+    // *** 應用題生成函數 ***
+    function generateWordProblem() {
+        let max_n_wp = levelSettings[3].maxN;
+        let nA = genNum(max_n_wp + 20, 10);
+        let nB = genNum(max_n_wp, 5);
+        let nC = genNum(max_n_wp, 5);
+        let nD = genNum(max_n_wp, 5);
+        
+        let type = levelSettings[3].types[Math.floor(Math.random() * levelSettings[3].types.length)];
         let qText = "";
         let ans = 0;
-        
-        // 數字範圍調整
-        let max_n1 = settings.maxN;
-        let max_n_small = (settings.maxN > 100) ? 15 : 10; 
+        let expression = "";
 
-        let n1 = genNum(max_n1); 
-        let n2 = genNum(max_n_small, 2); 
-        let n3 = genNum(max_n_small, 2); 
-
-        // 題目生成邏輯
         switch(type) {
-            // Level 1: 高數字挑戰 (先乘除後加減) - 邏輯與 V4.3 相同，確保無負數、無小數
-            case 0: // A + B x C 
-                let b_big = genNum(max_n_small + 5, 10); 
-                qText = `${n1} + ${b_big} × ${n3}`;
-                ans = n1 + (b_big * n3);
-                break;
-            case 1: // A - B x C 
-                let b_big_p = genNum(max_n_small + 5, 10);
-                let product = b_big_p * n3;
-                let bigNum = product + genNum(max_n1 / 2, 50); 
-                qText = `${bigNum} - ${b_big_p} × ${n3}`;
-                ans = bigNum - product;
-                break;
-            case 2: // A + B / C
-                let divisor = genDivisor(20); 
-                let quotient = genNum(15, 5); 
-                let dividend = divisor * quotient; 
-                qText = `${n1} + ${dividend} ÷ ${divisor}`;
-                ans = n1 + quotient;
-                break;
-            case 3: // A - B / C
-                let divisor_m = genDivisor(20);
-                let quotient_m = genNum(15, 5);
-                let divVal = divisor_m * quotient_m;
-                let startNum = divVal + genNum(max_n1 / 2, 50); 
-                qText = `${startNum} - ${divVal} ÷ ${divisor_m}`;
-                ans = startNum - quotient_m;
-                break;
-            case 7: // 複雜除法 (雙位數除法)
-                let divisor_c = genDivisor(30); 
-                let quotient_c = genNum(15, 5);
-                let dividend_c = divisor_c * quotient_c; 
-                let operation = Math.random() < 0.5 ? '+' : '-';
+            case 10: // 加減混合題 (A + B - C)
+                // 確保 A+B > C
+                let tempA = genNum(max_n_wp + 20, 20);
+                let tempB = genNum(max_n_wp, 10);
+                let tempC = genNum(tempA + tempB - 5, 5);
                 
-                if (operation === '+') {
-                    let add_num = genNum(50);
-                    qText = `${dividend_c} ÷ ${divisor_c} + ${add_num}`;
-                    ans = quotient_c + add_num;
-                } else {
-                    let final_add_num = genNum(quotient_c - 1, 1); 
-                    qText = `${dividend_c} ÷ ${divisor_c} - ${final_add_num}`;
-                    ans = quotient_c - final_add_num;
-                }
+                expression = `${tempA} + ${tempB} - ${tempC}`;
+                qText = `小明有 <b>${tempA}</b> 元，媽媽給他 <b>${tempB}</b> 元，他買了一本 <b>${tempC}</b> 元的書，請問他還剩下多少元？`;
+                ans = tempA + tempB - tempC;
                 break;
-
-
-            // Level 2: 括號 + 乘除連貫挑戰
-            case 4: // A x (B + C) 
-                qText = `${n2} × <span class="paren">(</span>${genNum(80)} + ${genNum(40)}<span class="paren">)</span>`;
-                ans = eval(qText.replace(/<[^>]*>/g, '').replace('×', '*').replace('÷', '/'));
-                break;
-
-            case 5: // A x (B - C) 
-                let b_sub = genNum(100, 50); 
-                let c_sub = genNum(b_sub - 3, 20); 
-                qText = `${n2} × <span class="paren">(</span>${b_sub} - ${c_sub}<span class="paren">)</span>`;
-                ans = eval(qText.replace(/<[^>]*>/g, '').replace('×', '*').replace('÷', '/'));
-                break;
-
-            case 6: // (A + B) / C
-                let a_paren = genNum(100, 50);
-                let b_paren = genNum(50, 10);
-                let sum_val = a_paren + b_paren;
-                let c_divisor_val = findDivisor(sum_val, 20);
                 
-                qText = `<span class="paren">(</span>${a_paren} + ${b_paren}<span class="paren">)</span> ÷ ${c_divisor_val}`; 
-                ans = sum_val / c_divisor_val; 
+            case 11: // 乘加混合題 (A x B + C)
+                expression = `${nB} × ${nC} + ${nA}`;
+                qText = `每盒餅乾有 <b>${nB}</b> 片，買了 <b>${nC}</b> 盒。如果小華原本有 <b>${nA}</b> 片餅乾，他現在總共有多少片餅乾？`;
+                ans = nB * nC + nA;
+                break;
+                
+            case 12: // 除減混合題 (A / B - C) (確保整除)
+                let quotient = genNum(10, 3);
+                let divisor = genNum(10, 2);
+                let dividend = quotient * divisor; // A
+                let sub_num = genNum(quotient - 2, 1); // C (確保結果非負)
 
-                if (ans % 1 !== 0) { return generateQuestion(); } // 保險措施
+                expression = `${dividend} ÷ ${divisor} - ${sub_num}`;
+                qText = `老師將 <b>${dividend}</b> 顆糖果平分給 <b>${divisor}</b> 位同學，每人拿到糖果後，又吃了 <b>${sub_num}</b> 顆，請問每位同學還剩下多少顆糖果？`;
+                ans = quotient - sub_num;
                 break;
 
-            case 9: // 乘除連貫 (A ÷ B × C 或 A × B ÷ C)
-                let op_order = Math.random() < 0.5 ? 'DivMul' : 'MulDiv';
-                let temp_result;
-                
-                // 嘗試生成，確保每一步都整除
-                for (let i = 0; i < 10; i++) {
-                    let numA_c = genNum(100, 20);
-                    let numB_c = genNum(10, 2);
-                    let numC_c = genNum(10, 2);
-                    op_order = Math.random() < 0.5 ? 'DivMul' : 'MulDiv';
+            case 13: // 括號混合題 (A x (B - C))
+                let b_paren = genNum(20, 10);
+                let c_paren = genNum(b_paren - 2, 5); // 確保 B > C
+                let mul_num = genNum(5, 2); // A
 
-                    if (op_order === 'DivMul') { // A ÷ B × C
-                        if (numA_c % numB_c === 0) {
-                            temp_result = (numA_c / numB_c) * numC_c;
-                            if (temp_result % 1 === 0 && temp_result > 0) { // 確保整數且非負
-                                qText = `${numA_c} ÷ ${numB_c} × ${numC_c}`;
-                                ans = temp_result;
-                                break;
-                            }
-                        }
-                    } else { // A × B ÷ C
-                        temp_result = (numA_c * numB_c);
-                        if (temp_result % numC_c === 0) { // 確保乘積能被 C 整除
-                            ans = temp_result / numC_c;
-                            if (ans % 1 === 0 && ans > 0) {
-                                qText = `${numA_c} × ${numB_c} ÷ ${numC_c}`;
-                                break;
-                            }
-                        }
-                    }
-                }
-                
-                if (ans === 0 || ans % 1 !== 0) { 
-                    // 10次嘗試失敗，退回一個簡單的乘除算式
-                    return generateQuestion(); 
-                }
+                expression = `${mul_num} × (${b_paren} - ${c_paren})`;
+                qText = `每輛巴士原本有 <b>${b_paren}</b> 個座位，壞了 <b>${c_paren}</b> 個座位。如果有 <b>${mul_num}</b> 輛這樣的巴士，總共還剩下幾個座位？`;
+                ans = mul_num * (b_paren - c_paren);
                 break;
         }
 
-        document.getElementById('question-display').innerHTML = `${qText} = ?`;
+        // 儲存運算式供答錯時顯示
+        currentQuestionExpression = expression;
+        return { qText: qText, ans: ans };
+    }
+
+
+    function generateQuestion() {
+        const settings = levelSettings[currentLevel];
+        
+        let qText = "";
+        let ans = 0;
+        currentQuestionExpression = ""; // 重設運算式
+
+        if (settings.isWordProblem) {
+            const result = generateWordProblem();
+            qText = result.qText;
+            ans = result.ans;
+        } else {
+            let type = settings.types[Math.floor(Math.random() * settings.types.length)];
+            
+            // 數字範圍調整
+            let max_n1 = settings.maxN;
+            let max_n_small = (settings.maxN > 100) ? 15 : 10; 
+
+            let n1 = genNum(max_n1); 
+            let n2 = genNum(max_n_small, 2); 
+            let n3 = genNum(max_n_small, 2); 
+            
+            // 題目生成邏輯 (與 V4.3 相同，專注於算式)
+            switch(type) {
+                // Level 1: 高數字挑戰
+                case 0: // A + B x C 
+                    let b_big = genNum(max_n_small + 5, 10); 
+                    currentQuestionExpression = `${n1} + ${b_big} × ${n3}`;
+                    ans = n1 + (b_big * n3);
+                    break;
+                case 1: // A - B x C 
+                    let b_big_p = genNum(max_n_small + 5, 10);
+                    let product = b_big_p * n3;
+                    let bigNum = product + genNum(max_n1 / 2, 50); 
+                    currentQuestionExpression = `${bigNum} - ${b_big_p} × ${n3}`;
+                    ans = bigNum - product;
+                    break;
+                case 2: // A + B / C
+                    let divisor = genDivisor(20); 
+                    let quotient = genNum(15, 5); 
+                    let dividend = divisor * quotient; 
+                    currentQuestionExpression = `${n1} + ${dividend} ÷ ${divisor}`;
+                    ans = n1 + quotient;
+                    break;
+                case 3: // A - B / C
+                    let divisor_m = genDivisor(20);
+                    let quotient_m = genNum(15, 5);
+                    let divVal = divisor_m * quotient_m;
+                    let startNum = divVal + genNum(max_n1 / 2, 50); 
+                    currentQuestionExpression = `${startNum} - ${divVal} ÷ ${divisor_m}`;
+                    ans = startNum - quotient_m;
+                    break;
+                case 7: // 複雜除法 (雙位數除法)
+                    let divisor_c = genDivisor(30); 
+                    let quotient_c = genNum(15, 5);
+                    let dividend_c = divisor_c * quotient_c; 
+                    let operation = Math.random() < 0.5 ? '+' : '-';
+                    
+                    if (operation === '+') {
+                        let add_num = genNum(50);
+                        currentQuestionExpression = `${dividend_c} ÷ ${divisor_c} + ${add_num}`;
+                        ans = quotient_c + add_num;
+                    } else {
+                        let final_add_num = genNum(quotient_c - 1, 1); 
+                        currentQuestionExpression = `${dividend_c} ÷ ${divisor_c} - ${final_add_num}`;
+                        ans = quotient_c - final_add_num;
+                    }
+                    break;
+
+
+                // Level 2: 括號 + 乘除連貫挑戰
+                case 4: // A x (B + C) 
+                    currentQuestionExpression = `${n2} × <span class="paren">(</span>${genNum(80)} + ${genNum(40)}<span class="paren">)</span>`;
+                    ans = eval(currentQuestionExpression.replace(/<[^>]*>/g, '').replace('×', '*').replace('÷', '/'));
+                    break;
+
+                case 5: // A x (B - C) 
+                    let b_sub = genNum(100, 50); 
+                    let c_sub = genNum(b_sub - 3, 20); 
+                    currentQuestionExpression = `${n2} × <span class="paren">(</span>${b_sub} - ${c_sub}<span class="paren">)</span>`;
+                    ans = eval(currentQuestionExpression.replace(/<[^>]*>/g, '').replace('×', '*').replace('÷', '/'));
+                    break;
+
+                case 6: // (A + B) / C
+                    let a_paren = genNum(100, 50);
+                    let b_paren = genNum(50, 10);
+                    let sum_val = a_paren + b_paren;
+                    let c_divisor_val = findDivisor(sum_val, 20);
+                    
+                    currentQuestionExpression = `<span class="paren">(</span>${a_paren} + ${b_paren}<span class="paren">)</span> ÷ ${c_divisor_val}`; 
+                    ans = sum_val / c_divisor_val; 
+
+                    if (ans % 1 !== 0) { return generateQuestion(); } 
+                    break;
+
+                case 9: // 乘除連貫 (A ÷ B × C 或 A × B ÷ C)
+                    let op_order = Math.random() < 0.5 ? 'DivMul' : 'MulDiv';
+                    let temp_result;
+                    
+                    for (let i = 0; i < 10; i++) {
+                        let numA_c = genNum(100, 20);
+                        let numB_c = genNum(10, 2);
+                        let numC_c = genNum(10, 2);
+                        op_order = Math.random() < 0.5 ? 'DivMul' : 'MulDiv';
+
+                        if (op_order === 'DivMul') { 
+                            if (numA_c % numB_c === 0) {
+                                temp_result = (numA_c / numB_c) * numC_c;
+                                if (temp_result % 1 === 0 && temp_result > 0) { 
+                                    currentQuestionExpression = `${numA_c} ÷ ${numB_c} × ${numC_c}`;
+                                    ans = temp_result;
+                                    break;
+                                }
+                            }
+                        } else { 
+                            temp_result = (numA_c * numB_c);
+                            if (temp_result % numC_c === 0) { 
+                                ans = temp_result / numC_c;
+                                if (ans % 1 === 0 && ans > 0) {
+                                    currentQuestionExpression = `${numA_c} × ${numB_c} ÷ ${numC_c}`;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (ans === 0 || ans % 1 !== 0) { 
+                        return generateQuestion(); 
+                    }
+                    break;
+            }
+            // 對於非應用題，直接將運算式設為題目文字
+            qText = currentQuestionExpression;
+        }
+
+
+        document.getElementById('question-display').innerHTML = settings.isWordProblem ? qText : `${qText} = ?`;
         currentAnswer = ans;
         document.getElementById('answer-input').value = '';
         document.getElementById('answer-input').focus();
@@ -386,6 +475,7 @@
         let playerAns = parseInt(input);
         let log = document.getElementById('game-log');
         let monster = document.getElementById('monster');
+        const settings = levelSettings[currentLevel];
 
         if (playerAns === currentAnswer) {
             // 答對
@@ -400,13 +490,15 @@
             // 答錯 - 顯示原題目和正確答案
             heroHP -= 1;
             
-            // 1. 取得並清理題目文字 (移除 HTML 標籤，例如 <span class="paren">)
-            let currentQuestionHTML = document.getElementById('question-display').innerHTML;
-            let currentQuestionText = currentQuestionHTML.replace(' = ?', '').replace(/<[^>]*>/g, '');
+            let questionContent = settings.isWordProblem ? 
+                                    `正確算式是 <b>${currentQuestionExpression}</b>，` : 
+                                    `正確答案是 <b>${currentQuestionExpression.replace(/<[^>]*>/g, '')} = ${currentAnswer}</b>。`;
 
-            const hint = currentLevel === 1 ? "記得「先乘除後加減」！請筆算確認喔！" : "小心「括號優先」或「同級運算：由左至右」的順序！";
+            const hint = settings.isWordProblem ? "應用題需要先正確列出算式喔！" : 
+                         currentLevel === 1 ? "記得「先乘除後加減」！請筆算確認喔！" : 
+                         "小心「括號優先」或「同級運算：由左至右」的順序！";
             
-            log.innerHTML = `💥 哎呀！你回答 ${playerAns}，但正確答案是 <b>${currentQuestionText} = ${currentAnswer}</b>。<br>${hint}`;
+            log.innerHTML = `💥 哎呀！你回答 ${playerAns}，${questionContent} 結果是 <b>${currentAnswer}</b>。<br>${hint}`;
             log.style.color = "#e74c3c";
             
             document.body.classList.add('shake');
@@ -450,13 +542,19 @@
                 // 通關第一關
                 title.innerText = "⭐ 第一關突破！ (5/5 題)";
                 msg.innerText = "成功征服大數字！準備挑戰連貫運算和括號吧！";
-                nextButton.innerText = "進入第二關 (最終挑戰)";
+                nextButton.innerText = "進入第二關 (進階挑戰)";
                 nextButton.style.backgroundColor = "#e67e22"; 
+            } else if (currentLevel === 2) {
+                // 通關第二關
+                title.innerText = "👑 第二關突破！ (5/5 題)";
+                msg.innerText = "你掌握了所有運算規則！準備迎接應用題的最終考驗！";
+                nextButton.innerText = "進入第三關 (應用題挑戰)";
+                nextButton.style.backgroundColor = "#9b59b6"; // 紫色
             } else {
-                // 通關第二關 (遊戲勝利)
-                title.innerText = "🎉 恭喜！最終勝利！ (5/5 題)";
+                // 通關第三關 (遊戲勝利)
+                title.innerText = "🎉 恭喜！數學勇者最終勝利！ (5/5 題)";
                 title.style.color = "#f1c40f";
-                msg.innerText = "你已是數學領域的真正勇者！去領取你的大獎勵吧！";
+                msg.innerText = "你已能將數學應用於實際情境！太棒了！";
                 nextButton.innerText = "重新開始遊戲";
                 nextButton.style.backgroundColor = "#3498db"; 
             }
@@ -474,8 +572,10 @@
         if (monsterHP <= 0) {
             if (currentLevel === 1) {
                 initGame(2); // 進入第二關
+            } else if (currentLevel === 2) {
+                initGame(3); // 進入第三關
             } else {
-                initGame(1); // 從第一關重新開始
+                initGame(1); // 重新開始
             }
         } else {
             // 挑戰失敗，重設本關
